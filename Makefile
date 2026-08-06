@@ -39,7 +39,7 @@ build:
 
 # Build without cache
 build-nc:
-	docker-compose -f $(COMPOSE_FILE) --build --no-cache
+	docker-compose -f $(COMPOSE_FILE) up -d --build --no-cache
 
 # Build and start everything
 up:
