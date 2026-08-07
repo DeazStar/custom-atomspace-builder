@@ -1,10 +1,12 @@
 import asyncio
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from .config import settings
 from .core.database import neo4j_manager
 from .core.background_tasks import session_cleanup_worker
+from .core.upload_state_store import StateStoreUnavailable
 
 # Import routers
 from .api.upload import router as upload_router
@@ -68,6 +70,13 @@ def create_app() -> FastAPI:
     app.include_router(jobs_router)
     app.include_router(graph_router)
     app.include_router(admin_router)
+
+    @app.exception_handler(StateStoreUnavailable)
+    async def state_store_unavailable_handler(request: Request, exc: StateStoreUnavailable):
+        return JSONResponse(
+            status_code=503,
+            content={"detail": f"State store unavailable: {exc}"}
+        )
     
     return app
 

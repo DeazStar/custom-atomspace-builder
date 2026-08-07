@@ -43,6 +43,14 @@ class Settings:
         # Session settings
         self.session_timeout = timedelta(hours=self._config['uploads']['session_timeout'])
         
+        # Redis / Celery settings
+        self.redis_url = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
+        self.celery_broker_url = os.getenv('CELERY_BROKER_URL', self.redis_url)
+        self.celery_result_backend = os.getenv('CELERY_RESULT_BACKEND', self.redis_url)
+        self.upload_chunk_size = int(os.getenv('UPLOAD_CHUNK_SIZE', str(1024 * 1024)))
+        self.celery_task_time_limit = int(os.getenv('CELERY_TASK_TIME_LIMIT', '1800'))
+        self.celery_task_soft_time_limit = int(os.getenv('CELERY_TASK_SOFT_TIME_LIMIT', '1500'))
+        
         # Annotation service
         self.annotation_service_url = os.getenv('ANNOTATION_SERVICE_URL')
         self.annotation_service_timeout = float(os.getenv('ANNOTATION_SERVICE_TIMEOUT', '300'))
@@ -50,7 +58,7 @@ class Settings:
         # Neo4j settings
         self.neo4j_config = {
             "host": os.getenv('NEO4J_HOST', 'localhost'),
-            "port": int(os.getenv('NEO4J_PORT')),
+            "port": int(os.getenv('NEO4J_PORT', '7687')),
             "username": os.getenv('NEO4J_USERNAME', 'neo4j'),
             "password": os.getenv('NEO4J_PASSWORD'),
             "database": os.getenv('NEO4J_DATABASE', 'neo4j')
