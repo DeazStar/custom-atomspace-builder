@@ -46,6 +46,10 @@ def process_uploaded_files_task(self, session_id: str,
             try:
                 upload_state_store.set_file_status(session_id, filename, "failed", error=str(exc))
             except Exception:  # noqa: BLE001
-                pass
+                # Terminal state could not be persisted (e.g. Redis down). Acking
+                # this task would leave the file stuck in queued/processing with
+                # no way to recover, so re-raise and let Celery's acks_late
+                # behavior redeliver the task.
+                raise
             results[filename] = "failed"
     return {"session_id": session_id, "files": results}
