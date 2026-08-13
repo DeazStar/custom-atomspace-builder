@@ -56,48 +56,63 @@ async def upload_files(
     session_dir = session_manager._get_session_dir(session_id)
     uploaded_files = []
     pending_entries = []
-    
-    for file in files:
-        # Register first (atomic HSETNX in the state store). The returned
-        # upload_id is the generation token carried by the Celery task.
-        upload_id = session_manager.add_file_to_session(session_id, file.filename)
-        if not upload_id:
-            raise HTTPException(
-                status_code=400, 
-                detail=f"File {file.filename} already uploaded"
-            )
-        
-        file_path = os.path.join(session_dir, file.filename)
-        
-        try:
-            with open(file_path, "wb") as f:
-                while True:
-                    chunk = await file.read(settings.upload_chunk_size)
-                    if not chunk:
-                        break
-                    f.write(chunk)
-            
-            size = os.path.getsize(file_path)
-            uploaded_at = datetime.now(tz=timezone.utc).isoformat()
-            # Record size/uploaded_at once the file is fully persisted
-            upload_state_store.update_file_metadata(
-                session_id, file.filename, size, uploaded_at)
-            
-            uploaded_files.append(UploadFileInfo(
-                filename=file.filename,
-                size=size,
-                uploaded_at=uploaded_at
-            ))
-            pending_entries.append({"filename": file.filename, "upload_id": upload_id})
-            
-        except Exception as e:
-            # Persist failed: roll back the registration (tombstone + remove the
-            # partial file) so the file is never picked up by a worker.
-            session_manager.rollback_file_upload(session_id, file.filename)
-            raise HTTPException(
-                status_code=500, 
-                detail=f"Failed to upload {file.filename}: {str(e)}"
-            )
+    # Files registered by THIS request (each a fresh generation token). On any
+    # failure mid-request we roll back exactly these - never files that existed
+    # before the request.
+    registered_in_request = []
+
+    try:
+        for file in files:
+            # Register first (atomic HSETNX in the state store). The returned
+            # upload_id is the generation token carried by the Celery task.
+            upload_id = session_manager.add_file_to_session(session_id, file.filename)
+            if not upload_id:
+                raise HTTPException(
+                    status_code=400, 
+                    detail=f"File {file.filename} already uploaded"
+                )
+            registered_in_request.append({"filename": file.filename, "upload_id": upload_id})
+
+            file_path = os.path.join(session_dir, file.filename)
+
+            try:
+                with open(file_path, "wb") as f:
+                    while True:
+                        chunk = await file.read(settings.upload_chunk_size)
+                        if not chunk:
+                            break
+                        f.write(chunk)
+
+                size = os.path.getsize(file_path)
+                uploaded_at = datetime.now(tz=timezone.utc).isoformat()
+                # Record size/uploaded_at once the file is fully persisted
+                upload_state_store.update_file_metadata(
+                    session_id, file.filename, size, uploaded_at)
+
+                uploaded_files.append(UploadFileInfo(
+                    filename=file.filename,
+                    size=size,
+                    uploaded_at=uploaded_at
+                ))
+                pending_entries.append({"filename": file.filename, "upload_id": upload_id})
+
+            except Exception as e:
+                # Persist failed for this file: raise so the whole request is
+                # rolled back below (the failing file is in registered_in_request).
+                raise HTTPException(
+                    status_code=500, 
+                    detail=f"Failed to upload {file.filename}: {str(e)}"
+                ) from e
+    except Exception:
+        # A partial multi-file upload must never leave earlier files registered
+        # as 'queued' with no task to process them (enqueue only happens after
+        # the full loop). Roll back every file registered by THIS request.
+        for entry in registered_in_request:
+            try:
+                session_manager.rollback_file_upload(session_id, entry["filename"])
+            except Exception:  # noqa: BLE001 - best-effort rollback
+                pass
+        raise
     
     # Enqueue background preprocessing
     task_id = None
