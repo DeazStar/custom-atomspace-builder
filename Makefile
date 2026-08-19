@@ -3,6 +3,8 @@ COMPOSE_FILE=docker-compose.yml
 COMPOSE_FILE_DEV=docker-compose.dev.yml
 SERVICE=atomspace-api
 SERVICE_DEV=atomspace-api-dev
+WORKER=atomspace-worker
+WORKER_DEV=atomspace-worker-dev
 
 
 # Default target
@@ -22,10 +24,14 @@ help:
 	@echo "  make up-api-dev  - Build and start only $(SERVICE_DEV) in development mode without restarting dependencies"
 	@echo "  make up-no-neo4j - Build and start all services except Neo4j"
 	@echo "  make up-neo4j    - Build and start only the Neo4j service"
+	@echo "  make up-worker   - Build and start only $(WORKER) without restarting dependencies"
+	@echo "  make up-worker-dev - Build and start only $(WORKER_DEV) without restarting dependencies"
 	@echo "  make down        - Stop all running containers"
 	@echo "  make down-dev    - Stop all running containers in development mode"
 	@echo "  make logs        - View logs for $(SERVICE)"
 	@echo "  make logs-dev    - View logs for $(SERVICE_DEV) in development mode"
+	@echo "  make logs-worker - View logs for $(WORKER)"
+	@echo "  make logs-worker-dev - View logs for $(WORKER_DEV) in development mode"
 	@echo "  make rebuild     - Force rebuild all services and restart"
 	@echo "  make rebuild-dev - Force rebuild all services in development mode and restart"
 	@echo "  make clean       - Stop all containers and remove volumes (WARNING: deletes DB data)"
@@ -39,7 +45,7 @@ build:
 
 # Build without cache
 build-nc:
-	docker compose -f $(COMPOSE_FILE) --build --no-cache
+	docker compose -f $(COMPOSE_FILE) up -d --build --no-cache
 
 # Build and start everything
 up:
@@ -66,6 +72,14 @@ down:
 # View logs for API
 logs:
 	docker compose -f $(COMPOSE_FILE) logs -f $(SERVICE)
+
+# Build & start worker only (production)
+up-worker:
+	docker compose -f $(COMPOSE_FILE) up -d --no-deps --build $(WORKER)
+
+# View logs for worker (production)
+logs-worker:
+	docker compose -f $(COMPOSE_FILE) logs -f $(WORKER)
 
 # Rebuild everything and restart
 rebuild:
@@ -100,6 +114,14 @@ down-dev:
 # View logs for API in development mode
 logs-dev:
 	docker compose -f $(COMPOSE_FILE_DEV) logs -f $(SERVICE_DEV)
+
+# Build & start worker only (development)
+up-worker-dev:
+	docker compose -f $(COMPOSE_FILE_DEV) up -d --no-deps --build $(WORKER_DEV)
+
+# View logs for worker in development mode
+logs-worker-dev:
+	docker compose -f $(COMPOSE_FILE_DEV) logs -f $(WORKER_DEV)
 
 # Rebuild everything and restart in development mode
 rebuild-dev:

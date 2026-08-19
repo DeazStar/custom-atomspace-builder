@@ -1,0 +1,6 @@
+# Benchmark client dependencies (the API itself runs unchanged, in Docker).
+# httpx is already a runtime dependency of the app (see requirements.txt);
+# this file exists so the benchmark can be installed standalone.
+httpx>=0.27
+# Only needed for --redis-url queue-depth sampling in benchmark_async.py
+redis

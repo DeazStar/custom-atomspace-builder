@@ -20,6 +20,9 @@ services:
       - HUGEGRAPH_GRAPH=${HUGEGRAPH_GRAPH:-hugegraph}
       - ANNOTATION_SERVICE_URL=${ANNOTATION_SERVICE_URL:-}
       - ANNOTATION_SERVICE_TIMEOUT=${ANNOTATION_SERVICE_TIMEOUT:-300.0}
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
     volumes:
       - ./output:/app/output
       - ./config.yaml:/app/config.yaml
@@ -28,6 +31,40 @@ services:
     depends_on:
       hugegraph:
         condition: service_started
+      redis:
+        condition: service_started
+    networks:
+      - atomspace-network
+    restart: always
+
+  atomspace-worker:
+    image: abdum1964/atomspace-api:latest
+    container_name: atomspace-worker
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - CELERY_WORKER_CONCURRENCY=${CELERY_WORKER_CONCURRENCY:-4}
+    volumes:
+      - ./output:/app/output
+      - ./config.yaml:/app/config.yaml
+      - atomspace_logs:/app/logs
+      - shared_output:/shared/output
+    depends_on:
+      redis:
+        condition: service_started
+    networks:
+      - atomspace-network
+    restart: always
+    command: celery -A app.core.celery_app.celery_app worker --loglevel=INFO --concurrency=${CELERY_WORKER_CONCURRENCY:-4}
+
+  redis:
+    image: redis:7-alpine
+    container_name: atomspace-redis
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
     networks:
       - atomspace-network
     restart: always
@@ -85,6 +122,7 @@ volumes:
   hugegraph_logs:
   atomspace_logs:
   shared_output:
+  redis_data:
 
 networks:
   atomspace-network:
