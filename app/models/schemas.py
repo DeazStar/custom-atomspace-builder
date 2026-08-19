@@ -73,6 +73,8 @@ class UploadResponse(BaseModel):
     uploaded_files: List[UploadFileInfo]
     total_files: int
     files_in_session: List[str]
+    task_id: Optional[str] = None
+    file_statuses: Optional[Dict[str, str]] = None
 
 class FileInfo(BaseModel):
     name: str
@@ -91,8 +93,10 @@ class SessionStatusResponse(BaseModel):
     status: str
     expires_at: str
     files: List[UploadFileInfo]  # Original file info
+    file_statuses: Dict[str, str] = {}  # filename -> uploaded/queued/processing/processed/failed/deleted
+    errors: Dict[str, str] = {}  # filename -> error message
     total_files: int
-    datasources: List[DataSource]  # New preprocessed data sources
+    datasources: List[DataSource]  # Preprocessed data sources (processed files)
 
 class CreateSessionResponse(BaseModel):
     session_id: str
@@ -158,19 +162,6 @@ class SchemaConversionResponse(BaseModel):
 
 
 # Schema Suggestion Models
-class FileInfo(BaseModel):
-    name: str
-    size: int
-    type: str
-
-
-class DataSource(BaseModel):
-    id: str
-    file: FileInfo
-    columns: List[str]
-    sampleRow: List[str]
-
-
 class SchemaProperty(BaseModel):
     name: Optional[str] = None
     col: str

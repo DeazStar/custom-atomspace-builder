@@ -20,6 +20,9 @@ services:
       - HUGEGRAPH_GRAPH=${HUGEGRAPH_GRAPH:-hugegraph}
       - ANNOTATION_SERVICE_URL=${ANNOTATION_SERVICE_URL:-}
       - ANNOTATION_SERVICE_TIMEOUT=${ANNOTATION_SERVICE_TIMEOUT:-300.0}
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
       - PYTHONDONTWRITEBYTECODE=1
       - PYTHONUNBUFFERED=1
     volumes:
@@ -34,6 +37,8 @@ services:
         condition: service_healthy
       hugegraph:
         condition: service_started
+      redis:
+        condition: service_started
     networks:
       - atomspace-network
     restart: always
@@ -41,6 +46,46 @@ services:
     command: python -m app.main
     # Alternative with auto-reload (requires watchdog in requirements.txt):
     # command: watchmedo auto-restart --directory=/app/app --pattern="*.py" --recursive -- python -m app.main
+
+  # Celery worker for background upload preprocessing (development)
+  atomspace-worker-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      cache_from:
+        - atomspace-api
+    container_name: atomspace-worker-dev
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - CELERY_WORKER_CONCURRENCY=${CELERY_WORKER_CONCURRENCY:-4}
+      - PYTHONDONTWRITEBYTECODE=1
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./app:/app/app:ro
+      - ./config.yaml:/app/config.yaml:ro
+      - ./output:/app/output
+      - atomspace_logs:/app/logs
+      - shared_output:/shared/output
+    depends_on:
+      redis:
+        condition: service_started
+    networks:
+      - atomspace-network
+    restart: always
+    command: celery -A app.core.celery_app.celery_app worker --loglevel=INFO --concurrency=${CELERY_WORKER_CONCURRENCY:-4}
+
+  redis:
+    image: redis:7-alpine
+    container_name: atomspace-redis
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - atomspace-network
+    restart: always
 
   # Neo4j Database with correct volume mounting
   neo4j:
@@ -115,6 +160,8 @@ volumes:
   atomspace_logs:
     driver: local
   shared_output:
+    driver: local
+  redis_data:
     driver: local
 
 networks:
