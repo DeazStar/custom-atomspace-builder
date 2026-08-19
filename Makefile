@@ -43,68 +43,68 @@ build-nc:
 
 # Build and start everything
 up:
-	docker-compose -f $(COMPOSE_FILE) up -d
+	docker compose -f $(COMPOSE_FILE) up -d
 
 # Build & start only API (fast when only Python changes)
 up-api:
-	docker-compose -f $(COMPOSE_FILE) up -d --no-deps --build $(SERVICE)
+	docker compose -f $(COMPOSE_FILE) up -d --no-deps --build $(SERVICE)
 
 # Build and start all services EXCEPT Neo4j
 up-no-neo4j:
 	@echo "Starting all services except Neo4j..."
-	docker-compose -f $(COMPOSE_FILE) up -d --build hugegraph $(SERVICE)
+	docker compose -f $(COMPOSE_FILE) up -d --build hugegraph $(SERVICE)
 
 # Build and start neo4j only
 up-neo4j:
 	@echo "Starting only Neo4j service..."
-	docker-compose -f $(COMPOSE_FILE) up -d --build neo4j
+	docker compose -f $(COMPOSE_FILE) up -d --build neo4j
 	
 # Stop all containers
 down:
-	docker-compose -f $(COMPOSE_FILE) down
+	docker compose -f $(COMPOSE_FILE) down
 
 # View logs for API
 logs:
-	docker-compose -f $(COMPOSE_FILE) logs -f $(SERVICE)
+	docker compose -f $(COMPOSE_FILE) logs -f $(SERVICE)
 
 # Rebuild everything and restart
 rebuild:
-	docker-compose -f $(COMPOSE_FILE) up -d --build
+	docker compose -f $(COMPOSE_FILE) up -d --build
 
 # Clean volumes (WARNING: deletes DB data)
 clean:
-	docker-compose -f $(COMPOSE_FILE) down -v
+	docker compose -f $(COMPOSE_FILE) down -v
 
 
 # Development targets
 # Build all services in development mode
 build-dev:
-	docker-compose -f $(COMPOSE_FILE_DEV) up -d --build
+	docker compose -f $(COMPOSE_FILE_DEV) up -d --build
 
 # Build without cache in development mode
 build-nc-dev:
-	docker-compose -f $(COMPOSE_FILE_DEV) up -d --build --no-cache
+	docker compose -f $(COMPOSE_FILE_DEV) up -d --build --no-cache
 
 # Build and start everything in development mode
 up-dev:
-	docker-compose -f $(COMPOSE_FILE_DEV) up -d
+	docker compose -f $(COMPOSE_FILE_DEV) up -d
 
 # Build & start only API in development mode (fast when only Python changes)
 up-api-dev:
-	docker-compose -f $(COMPOSE_FILE_DEV) up -d --no-deps --build $(SERVICE_DEV)
+	docker compose -f $(COMPOSE_FILE_DEV) up -d --no-deps --build $(SERVICE_DEV)
 
 # Stop all containers in development mode
 down-dev:
-	docker-compose -f $(COMPOSE_FILE_DEV) down
+	docker compose -f $(COMPOSE_FILE_DEV) down
 
 # View logs for API in development mode
 logs-dev:
-	docker-compose -f $(COMPOSE_FILE_DEV) logs -f $(SERVICE_DEV)
+	docker compose -f $(COMPOSE_FILE_DEV) logs -f $(SERVICE_DEV)
 
 # Rebuild everything and restart in development mode
 rebuild-dev:
-	docker-compose -f $(COMPOSE_FILE_DEV) up -d --build
+	docker compose -f $(COMPOSE_FILE_DEV) up -d --build
 
 # Clean volumes in development mode (WARNING: deletes DB data)
 clean-dev:
-	docker-compose -f $(COMPOSE_FILE_DEV) down -v
+	docker compose -f $(COMPOSE_FILE_DEV) down -v
